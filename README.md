@@ -85,12 +85,12 @@ O projeto foi organizado em **6 fases** sequenciais, seguindo boas práticas de 
   - **Árvore de Decisão:** depth=7, split=20, leaf=10 (regularizada)
 * **Avaliação no holdout (20%):** Comparação CV vs Holdout
 
-**Resultados:**
+**Resultados Iniciais (Fase 5):**
 
-| Modelo | Acurácia Holdout | Gap Treino-Teste | Veredito |
-|--------|------------------|------------------|----------|
-| **Árvore de Decisão** | **83.45%** | **4.65%** ✅ | Generaliza bem, confiável |
-| KNN (k=3) | 83.15% | 11.77% ⚠️ | Overfitting moderado |
+| Modelo | Acurácia Holdout | Gap Treino-Teste | Recall Churn |
+|--------|------------------|------------------|---------------|
+| KNN (k=3) | 83.15% | 11.77% ⚠️ | **88.69%** 🏆 |
+| Árvore de Decisão | 83.45% | **4.65%** ✅ | 63.69% |
 
 ---
 
@@ -98,17 +98,41 @@ O projeto foi organizado em **6 fases** sequenciais, seguindo boas práticas de 
 * **Análise de custos:**
   - **Falso Negativo (FN):** R\$2.000 de LTV perdido (cliente sai sem incentivo) 🔴
   - **Falso Positivo (FP):** R\$50 de cupom desperdiçado (cliente já ia ficar) 🟡
-  - **Razão de custo:** FN é **40x mais caro** que FP
-* **Escolha final:** **Árvore de Decisão** 🏆
-  - Menor gap (4.65%) → Maior confiabilidade em produção
-  - Melhor acurácia no holdout (83.45%)
-  - Usa todas as features (não desperdiça variáveis categóricas)
-  - Interpretável (pode explicar decisões ao time de CRM)
+  - **Razão de custo:** FN é **40x mais caro** que FP → **Prioridade: Minimizar FN!**
 
-**Classification Report:**
-* **Precision (Churn):** ~70%
-* **Recall (Churn):** ~65-70%
-* **ROC-AUC:** ~0.93
+* **Avaliação expandida:** Testados 7 modelos/configurações (KNN, Tree, Tree balanced, RandomForest × thresholds)
+
+* **Escolha final:** **KNN (k=3)** 🏆
+  - **Melhor recall (88.69%):** Detecta 149 de 168 churns → **Apenas 19 FN**
+  - **Economia de R\$84.000** vs Árvore de Decisão (salva 42 clientes a mais)
+  - **Score final mais alto** (0.8664 em métrica composta: 40% recall + 35% acurácia + 25% gap)
+  - **ROC-AUC de 0.9135:** Excelente poder discriminatório
+  - Gap de 11.77% é gerenciável com **monitoramento ativo + retreinamento mensal**
+
+**Métricas do KNN:**
+* **Acurácia:** 83.15%
+* **Recall (Churn):** **88.69%** ✅ (apenas 19 FN de 168)
+* **Precision (Churn):** ~49.5%
+* **F1-Score (Churn):** 0.6354
+* **ROC-AUC:** 0.9135
+
+### **Comparação dos 3 Finalistas**
+
+| Modelo | Recall | Acurácia | Gap | FN (de 168) | Score |
+|--------|--------|----------|-----|-------------|-------|
+| **🥇 KNN (k=3)** | **88.69%** | 83.15% | 11.77% ⚠️ | **19** | **0.8664** |
+| 🥈 RandomForest @ 0.35 | 80.36% | 78.72% | 5.59% | 33 | 0.8330 |
+| 🥉 Tree (d=7) | 63.69% | 83.45% | **4.65%** ✅ | 61 | 0.7852 |
+
+**Por que KNN venceu?**
+* ✅ **Cumpre o objetivo:** Minimizar FN (19 vs 61 da Tree = 42 clientes salvos)
+* ✅ **ROI superior:** R\$84.000 a mais em receita protegida
+* ✅ **Score composto mais alto:** Melhor balanço entre recall, acurácia e gap
+* ⚠️ **Mitigação do gap:** Monitoramento diário + retreinamento mensal + A/B test inicial
+
+**Alternativas disponíveis:**
+* Se gap degradar em produção → **RandomForest @ 0.35** (recall 80%, gap 5.59%)
+* Se precisar interpretabilidade → **Tree @ 0.35** (recall 71%, gap 4.87%)
 
 ---
 
@@ -190,7 +214,7 @@ jupyter notebook "Projeto Avaliativo - Módulo 1.ipynb"
 3. **Células 10-11:** Feature Engineering (análise)
 4. **Células 12-16:** Preparação para modelagem (encoding, split)
 5. **Células 17-22:** Modelagem e validação (CV, holdout, visualizações)
-6. **Células 23-25:** Avaliação de negócio (matriz de confusão, veredito final)
+6. **Células 23-26:** Avaliação expandida com foco em recall, matriz de confusão, veredito final
 
 ---
 
@@ -229,24 +253,30 @@ feat: adiciona análise de correlação com heatmap
 
 ## 📊 Resultados e Métricas Finais
 
-### **Modelo Escolhido: Árvore de Decisão** 🏆
+### **Modelo Escolhido: KNN (k=3)** 🏆
 
 | Métrica | Valor | Interpretação |
 |---------|-------|---------------|
-| **Acurácia** | 83.45% | 8 em cada 10 previsões corretas |
-| **Precision (Churn)** | ~70% | 70% dos alertas de churn são reais |
-| **Recall (Churn)** | ~65-70% | Detecta 65-70% dos clientes em risco |
-| **ROC-AUC** | ~0.93 | Excelente poder discriminatório |
-| **Gap Treino-Teste** | 4.65% | Baixo overfitting, confiável |
+| **Acurácia** | 83.15% | 8 em cada 10 previsões corretas |
+| **Recall (Churn)** | **88.69%** ✅ | Detecta 89% dos clientes em risco (apenas 19 FN) |
+| **Precision (Churn)** | ~49.5% | Metade dos alertas são churns reais (trade-off aceitável) |
+| **F1-Score (Churn)** | 0.6354 | Equilíbrio entre precision e recall |
+| **ROC-AUC** | 0.9135 | Excelente poder discriminatório |
+| **Gap Treino-Teste** | 11.77% ⚠️ | Overfitting gerenciável com monitoramento |
+| **Score Final** | 0.8664 | Melhor em métrica composta (40% recall + 35% acc + 25% gap) |
 
 ### **Impacto de Negócio Estimado**
 
 **Cenário: 1.000 clientes no período**
 * Clientes em risco real: ~170 (17%)
-* Clientes detectados pelo modelo: ~115 (67% recall)
-* **Receita protegida:** 115 × R\$2.000 = **R\$230.000**
-* Custo de intervenção: 200 FPs × R\$50 = **R\$10.000**
-* **ROI da campanha:** (230k - 10k) / 10k = **2.200%** 🚀
+* **Clientes detectados pelo KNN:** ~151 (88.69% recall) 🎯
+* **Receita protegida:** 151 × R\$2.000 = **R\$302.000**
+* Custo de intervenção: ~250 cupons × R\$50 = **R\$12.500**
+* **ROI da campanha:** (302k - 12.5k) / 12.5k = **2.316%** 🚀
+
+**Comparação com Árvore de Decisão:**
+* KNN detecta **42 clientes a mais** (151 vs 109)
+* **Economia líquida: R\$84.000** em receita protegida vs Tree
 
 ---
 
@@ -257,7 +287,9 @@ feat: adiciona análise de correlação com heatmap
 1. ✅ **Pipeline seguro evita data leakage:** SMOTE dentro do CV é essencial
 2. ✅ **Feature engineering nem sempre ajuda:** Testar empiricamente é obrigatório
 3. ✅ **Métricas de negócio > métricas técnicas:** Entender custos de FN vs FP é crítico
-4. ✅ **Interpretabilidade importa:** Árvores permitem explicar decisões ao time
+4. ✅ **Trade-offs são inevitáveis:** Gap alto (11.77%) é aceitável quando recall salva R\$84k
+5. ✅ **Monitoramento ativo é essencial:** Retreinamento mensal mitiga risco de overfitting
+6. ✅ **Score composto orienta decisão:** Balancear recall, acurácia e gap em métrica única
 
 ---
 
